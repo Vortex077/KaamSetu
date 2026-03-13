@@ -20,7 +20,7 @@ export default function WorkerProfilePage() {
     portfolioPhotos: []
   });
 
-  const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const weekDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
   useEffect(() => {
     fetchProfile();
@@ -33,9 +33,9 @@ export default function WorkerProfilePage() {
          setUser(localUser);
          setForm({
             skills: localUser.skills ? localUser.skills.join(', ') : '',
-            dailyRate: localUser.jobPreferences?.dailyRate || '',
-            monthlyRate: localUser.jobPreferences?.monthlyRate || '',
-            availableDays: localUser.jobPreferences?.availableDays || [],
+            dailyRate: localUser.dailyRate || '',
+            monthlyRate: localUser.monthlyRate || '',
+            availableDays: localUser.availableDays || [],
             location: localUser.location || null,
             portfolioPhotos: localUser.portfolioPhotos || []
          });
@@ -68,10 +68,13 @@ export default function WorkerProfilePage() {
   };
 
   const enablePush = async () => {
+    const loader = toast.loading('Requesting permissions...');
     try {
       await subscribeToPush();
+      toast.dismiss(loader);
       toast.success('Alerts enabled! You will be notified instantly when jobs match.');
     } catch(err) {
+      toast.dismiss(loader);
       toast.error('Failed to enable notifications');
     }
   };
@@ -109,11 +112,9 @@ export default function WorkerProfilePage() {
          name: user.name,
          phone: user.phone,
          skills: form.skills.split(',').map(s => s.trim()).filter(Boolean),
-         jobPreferences: {
-            dailyRate: form.dailyRate ? Number(form.dailyRate) : undefined,
-            monthlyRate: form.monthlyRate ? Number(form.monthlyRate) : undefined,
-            availableDays: form.availableDays
-         },
+         dailyRate: form.dailyRate ? Number(form.dailyRate) : undefined,
+         monthlyRate: form.monthlyRate ? Number(form.monthlyRate) : undefined,
+         availableDays: form.availableDays,
          location: form.location,
          portfolioPhotos: form.portfolioPhotos
       };
@@ -121,7 +122,7 @@ export default function WorkerProfilePage() {
       const { data } = await api.put('/api/workers/profile', updatedUser);
       
       localStorage.setItem('kaamsetu_user', JSON.stringify(data.data));
-      setUser(updatedUser);
+      setUser(data.data);
       toast.success('Profile preferences saved!');
     } catch (err) {
       toast.error('Failed to save profile.');
@@ -203,7 +204,7 @@ export default function WorkerProfilePage() {
                  <div className="flex flex-wrap gap-2">
                    {weekDays.map(day => (
                      <button type="button" key={day} onClick={() => handleDaySelect(day)} className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider border-2 transition-all ${form.availableDays.includes(day) ? 'bg-orange-50 text-orange-700 border-orange-500 shadow-sm shadow-orange-500/10' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>
-                       {day}
+                       {day.charAt(0).toUpperCase() + day.slice(1)}
                      </button>
                    ))}
                  </div>
