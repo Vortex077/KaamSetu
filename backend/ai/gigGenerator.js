@@ -1,11 +1,4 @@
-/**
- * Gig Generator AI Module — Gemini-powered
- * Takes raw/minimal hirer input and generates a polished gig posting
- * with structured title, description, and skill suggestions.
- */
-const axios = require('axios');
-
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 /**
  * Generate a polished gig posting from raw hirer input.
@@ -25,6 +18,14 @@ async function generateGigDescription(rawInput) {
       status: 'api_key_missing',
     };
   }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({ 
+    model: "gemini-2.0-flash",
+    generationConfig: {
+       responseMimeType: "application/json",
+    }
+  });
 
   const prompt = `You are a gig posting assistant for KaamSetu, a daily-wage job platform in India.
 
@@ -49,29 +50,15 @@ If the offered pay seems too low for the work described, suggest a fair market r
 Keep skills lowercase and practical (e.g. "cooking", "cleaning", "electrician", not "hard working").`;
 
   try {
-    const response = await axios.post(`${GEMINI_API_URL}?key=${apiKey}`, {
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 1024,
-        responseMimeType: 'application/json',
-      },
-    }, { timeout: 15000 });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    console.log('[GigGenerator] Raw Gemini Response:', text);
 
-    console.log('[GigGenerator] Raw Gemini Response:', JSON.stringify(response.data, null, 2));
-
-    const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
     try {
-      // Robust JSON extraction: look for the first { and last }
-      let cleanText = text;
-      const firstBrace = text.indexOf('{');
-      const lastBrace = text.lastIndexOf('}');
-      if (firstBrace !== -1 && lastBrace !== -1) {
-         cleanText = text.substring(firstBrace, lastBrace + 1);
-      }
-      
-      const result = JSON.parse(cleanText);
-      return { ...result, status: 'generated' };
+      const parsedData = JSON.parse(text);
+      return { ...parsedData, status: 'generated' };
     } catch (parseErr) {
       console.error('[GigGenerator] Parse error:', parseErr.message, 'Raw text:', text);
       return {
@@ -84,7 +71,7 @@ Keep skills lowercase and practical (e.g. "cooking", "cleaning", "electrician", 
       };
     }
   } catch (error) {
-    console.error('[GigGenerator] Gemini error:', error.message);
+    console.error('[GigGenerator] Gemini SDK error:', error.message);
     return {
       title: rawInput.title || 'Untitled Gig',
       description: rawInput.description || '',
