@@ -105,10 +105,9 @@ export default function WorkerProfilePage() {
     e.preventDefault();
     setSaving(true);
     try {
-      // Typically there would be a PUT /api/workers/:id route here
-      // We will simulate it updating the local data for the demo
       const updatedUser = {
-         ...user,
+         name: user.name,
+         phone: user.phone,
          skills: form.skills.split(',').map(s => s.trim()).filter(Boolean),
          jobPreferences: {
             dailyRate: form.dailyRate ? Number(form.dailyRate) : undefined,
@@ -118,7 +117,10 @@ export default function WorkerProfilePage() {
          location: form.location,
          portfolioPhotos: form.portfolioPhotos
       };
-      localStorage.setItem('kaamsetu_user', JSON.stringify(updatedUser));
+      
+      const { data } = await api.put('/api/workers/profile', updatedUser);
+      
+      localStorage.setItem('kaamsetu_user', JSON.stringify(data.data));
       setUser(updatedUser);
       toast.success('Profile preferences saved!');
     } catch (err) {

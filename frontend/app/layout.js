@@ -1,6 +1,7 @@
 import { Inter, Outfit } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import Navbar from "../components/Navbar";
+import ServiceWorkerRegister from "../components/ServiceWorkerRegister";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -19,6 +20,7 @@ export default function RootLayout({ children }) {
         <main className="flex-grow flex flex-col">
           {children}
         </main>
+        <ServiceWorkerRegister />
         <Toaster position="top-center" toastOptions={{
           style: {
             background: '#1E293B',
