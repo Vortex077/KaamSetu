@@ -22,32 +22,51 @@ export const subscribeToPush = async () => {
   }
 
   try {
-    const permission = await Notification.requestPermission();
+    // 1. Check/Request Permission
+    let permission = Notification.permission;
+    if (permission === 'default') {
+      permission = await Notification.requestPermission();
+    }
+    
     if (permission !== 'granted') {
        toast.error('You must allow notifications in your browser settings.');
        throw new Error('Notification permission denied');
     }
 
-    const registration = await navigator.serviceWorker.ready;
-    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    // 2. Get Service Worker with timeout
+    const swReady = new Promise((resolve, reject) => {
+       const timeout = setTimeout(() => reject(new Error('Service Worker took too long to become ready')), 5000);
+       navigator.serviceWorker.ready.then(reg => {
+          clearTimeout(timeout);
+          resolve(reg);
+       });
+    });
+
+    const registration = await swReady;
     
+    // 3. VAPID Key validation
+    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
     if (!vapidPublicKey || vapidPublicKey === 'generate_with_web-push') {
        throw new Error('VAPID public key is not configured');
     }
 
-    const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+    // 4. Check for existing subscription first
+    let subscription = await registration.pushManager.getSubscription();
+    
+    if (!subscription) {
+      const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: convertedVapidKey,
+      });
+    }
 
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: convertedVapidKey,
-    });
-
-    // Send the subscription to our backend
+    // 5. Sync with backend
     await api.post('/api/notifications/subscribe', { subscription });
     
     return subscription;
   } catch (error) {
-    console.error('Failed to subscribe to push notifications', error);
+    console.error('Push Subscription Error:', error);
     throw error;
   }
 };
