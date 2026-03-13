@@ -1,4 +1,4 @@
-const TelegramBot = require('8603931574:AAGxCdmV6PiXFENXol7puj2PAI_OG2Z9Y6c');
+const TelegramBot = require('node-telegram-bot-api');
 const { processVoiceRegistration } = require('../ai/voiceRegistration');
 const GigJob  = require('../models/GigJob');
 const Worker  = require('../models/Worker');
@@ -6,7 +6,7 @@ const Hirer   = require('../models/Hirer');
 const Application = require('../models/Application');
 
 let bot;
-if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BOT_TOKEN !== '8603931574:AAGxCdmV6PiXFENXol7puj2PAI_OG2Z9Y6c') {
+if (process.env.TELEGRAM_BOT_TOKEN) {
   bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
 
   // /start command
@@ -25,6 +25,13 @@ if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BOT_TOKEN !== '860393
   // Voice note — runs full AI pipeline
   bot.on('voice', async (msg) => {
     const chatId = msg.chat.id;
+
+    // Check if worker already exists and is confirmed
+    const existingWorker = await Worker.findOne({ telegramChatId: String(chatId) });
+    if (existingWorker && existingWorker.isAvailable) {
+      return bot.sendMessage(chatId, '⚠️ Aapki profile pehle se bani hui hai. Kaam aane par hum aapko yahan message karenge.');
+    }
+
     bot.sendMessage(chatId, '⏳ Sunaa ja raha hai...');
     try {
       const fileId   = msg.voice.file_id;
@@ -36,21 +43,65 @@ if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BOT_TOKEN !== '860393
         `👤 ${profile.name}\n🔧 Skills: ${profile.skills.join(', ')}\n` +
         `📍 ${profile.city}\n💰 ₹${profile.dailyRate}/din\n\n` +
         `Confirm karne ke liye *1* bhejein\n` +
-        `Aadhaar add karne ke liye *aadhaar [12 digit number]* bhejein`,
+        `Cancel karne ke liye *2* bhejein`,
         { parse_mode: 'Markdown' }
       );
+      
+      // Save temporary unconfirmed worker to database
+      if (!existingWorker) {
+          await Worker.create({
+            name: profile.name,
+            phone: 'Pending',
+            skills: profile.skills,
+            city: profile.city,
+            dailyRate: profile.dailyRate,
+            telegramChatId: String(chatId),
+            isAvailable: false // Not active until 1 is pressed
+          });
+      } else {
+          // Update the unconfirmed one
+          await Worker.findByIdAndUpdate(existingWorker._id, {
+            name: profile.name,
+            skills: profile.skills,
+            city: profile.city,
+            dailyRate: profile.dailyRate
+          });
+      }
     } catch (err) {
       console.error(err);
       bot.sendMessage(chatId, '❌ Kuch problem hui. Dobara try karein.');
     }
   });
 
-  // Aadhaar collection
-  bot.onText(/^aadhaar (\d{12})$/, async (msg, match) => {
+  // Phone number collection (Accepts pure 10 digits)
+  bot.onText(/^\s*(\d{10})\s*$/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const phoneNum = match[1];
+    const worker = await Worker.findOne({ telegramChatId: String(chatId) });
+    if (!worker) return;
+
+    await Worker.findByIdAndUpdate(worker._id, {
+      phone: phoneNum
+    });
+
+    bot.sendMessage(chatId,
+      `📱 Phone number save ho gaya!\n\n` +
+      `Ab apna account verify karne ke liye apna *12-digit Aadhaar number* likh kar bhejein.\n` +
+      `_Misal: 123456789012_`,
+      { parse_mode: 'Markdown' }
+    );
+  });
+
+  // Aadhaar collection (Accepts pure 12 digits)
+  bot.onText(/^\s*(\d{12})\s*$/, async (msg, match) => {
     const chatId       = msg.chat.id;
     const aadhaarNum   = match[1];
     const worker       = await Worker.findOne({ telegramChatId: String(chatId) });
     if (!worker) return;
+
+    if (worker.phone === 'Pending' || !worker.phone) {
+        return bot.sendMessage(chatId, `Pehle apna 10-digit phone number bhejein.\n_Misal: 9876543210_`, { parse_mode: 'Markdown' });
+    }
 
     await Worker.findByIdAndUpdate(worker._id, {
       aadhaarNumber:     aadhaarNum,
@@ -59,8 +110,9 @@ if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BOT_TOKEN !== '860393
 
     bot.sendMessage(chatId,
       `🆔 Aadhaar save ho gaya!\n` +
-      `Profile par XXXX-XXXX-${aadhaarNum.slice(-4)} dikhega\n` +
-      `Verification pending hai ⏳`
+      `Aapki profile puri tarah se ban chuki hai 🎉\n` +
+      `Jab koi hirer aapko select karega toh hum yahan message karenge.`,
+      { parse_mode: 'Markdown' }
     );
   });
 
@@ -109,14 +161,15 @@ if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BOT_TOKEN !== '860393
       });
       bot.sendMessage(chatId,
         `🎉 *KaamSetu par aapka swagat hai!*\n\n` +
-        `Jab koi hirer payment karke aapko hire karega,\n` +
-        `aapko yahan notification milegi. 💪`,
+        `✅ Aapki profile confirm ho gayi hai.\n\n` +
+        `Apne account mein ek valid *10-digit mobile number* jodein.\n` +
+        `_Misal: 9876543210_`,
         { parse_mode: 'Markdown' }
       );
     }
   });
 
-  // Reply "2" — decline job
+  // Reply "2" — decline job OR cancel profile creation
   bot.onText(/^2$/, async (msg) => {
     const chatId = msg.chat.id;
     const worker = await Worker.findOne({ telegramChatId: String(chatId) });
@@ -126,7 +179,15 @@ if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BOT_TOKEN !== '860393
       hiredWorkerId: worker._id,
       status:        'payment_held'
     });
-    if (!pendingGig) return;
+    
+    // If there is no pending gig, the user might be trying to cancel profile creation
+    if (!pendingGig) {
+      if (!worker.isAvailable) {
+         await Worker.findByIdAndDelete(worker._id);
+         return bot.sendMessage(chatId, '❌ Profile cancel ho gaya. Naya account banane ke liye naya voice note bhejein.');
+      }
+      return; 
+    }
 
     await GigJob.findByIdAndUpdate(pendingGig._id, {
       status:        'cancelled',

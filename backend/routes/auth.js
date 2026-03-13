@@ -15,8 +15,21 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Valid role is required' });
     }
 
+    const isDaily = role === 'worker' && workerSegment === 'daily_gig';
+    
+    if (isDaily && !phone) return res.status(400).json({ success: false, error: 'Phone is required for Daily Workers' });
+    if (!isDaily && !email) return res.status(400).json({ success: false, error: 'Email is required for web registration' });
+
     const Model = role === 'worker' ? Worker : Hirer;
-    let user = await Model.findOne({ phone });
+    
+    // Check if user exists based on primary identifier
+    let user;
+    if (isDaily) {
+       user = await Model.findOne({ phone });
+    } else {
+       user = await Model.findOne({ email });
+    }
+    
     if (user) return res.status(400).json({ success: false, error: 'User already exists' });
 
     const salt = await bcrypt.genSalt(10);
@@ -25,7 +38,7 @@ router.post('/register', async (req, res) => {
     let newUser;
     if (role === 'worker') {
       newUser = new Worker({
-        name, phone, email, password: hashedPassword, role: 'worker',
+        name, phone: phone || 'Pending', email, password: hashedPassword, role: 'worker',
         workerSegment: workerSegment || 'daily_gig',
         skills: skills || [],
         dailyRate: dailyRate || 0,
@@ -35,7 +48,7 @@ router.post('/register', async (req, res) => {
       });
     } else {
       newUser = new Hirer({
-        name, phone, email, password: hashedPassword, role: 'hirer',
+        name, phone: phone || 'Pending', email, password: hashedPassword, role: 'hirer',
         businessName, businessType,
         location: location || { type: 'Point', coordinates: [0, 0] }
       });
@@ -56,14 +69,14 @@ router.post('/register', async (req, res) => {
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
   try {
-    const { role, phone, password } = req.body;
+    const { role, email, password } = req.body;
     
-    if (!role || !phone || !password) {
+    if (!role || !email || !password) {
       return res.status(400).json({ success: false, error: 'Please enter all fields' });
     }
 
     const Model = role === 'worker' ? Worker : Hirer;
-    const user = await Model.findOne({ phone });
+    const user = await Model.findOne({ email });
 
     if (!user || !user.password) {
       return res.status(400).json({ success: false, error: 'Invalid credentials' });

@@ -66,10 +66,18 @@ router.get('/received', auth, async (req, res) => {
      }
 
      const { gigId } = req.query;
-     if (!gigId) return res.status(400).json({ success: false, error: 'gigId required' });
+     
+     let gigIdsToSearch = [];
+     if (gigId) {
+         gigIdsToSearch = [gigId];
+     } else {
+         const myGigs = await GigJob.find({ hirerId: req.user.userId }).select('_id');
+         gigIdsToSearch = myGigs.map(g => g._id);
+     }
 
-     const apps = await Application.find({ gigId, applicationMethod: 'self_applied' })
-       .populate('workerId', 'name skills rating aadhaarNumber isAadhaarVerified photo photo')
+     const apps = await Application.find({ gigId: { $in: gigIdsToSearch }, applicationMethod: 'self_applied' })
+       .populate('gigId', 'title payPerDay monthlyRate status')
+       .populate('workerId', 'name skills rating aadhaarNumber isAadhaarVerified photo')
        .sort({ createdAt: -1 });
 
      res.json({ success: true, data: apps });

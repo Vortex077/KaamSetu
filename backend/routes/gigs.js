@@ -263,4 +263,20 @@ router.get('/:id/status', auth, async (req, res) => {
     }
 });
 
+// GET /api/gigs/my-gigs - Hirer views their own gigs
+router.get('/my-gigs', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'hirer') {
+      return res.status(403).json({ success: false, error: 'Only hirers can view their gigs' });
+    }
+    const gigs = await GigJob.find({ hirerId: req.user.userId })
+        .populate('hiredWorkerId', 'name phone')
+        .sort({ postedAt: -1 });
+    res.json({ success: true, data: gigs });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'Server Error' });
+  }
+});
+
 module.exports = router;

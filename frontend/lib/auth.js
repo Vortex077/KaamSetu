@@ -1,59 +1,39 @@
-'use client';
+export const getToken = () => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('kaamsetu_token');
+  }
+  return null;
+};
 
-import { createContext, useContext, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+export const saveToken = (token) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('kaamsetu_token', token);
+  }
+};
 
-const AuthContext = createContext(null);
-
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
-
-  useEffect(() => {
-    const storedToken = localStorage.getItem('kaamsetu_token');
-    const storedUser = localStorage.getItem('kaamsetu_user');
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
-    }
-    setLoading(false);
-  }, []);
-
-  const loginUser = (userData, jwtToken) => {
-    localStorage.setItem('kaamsetu_token', jwtToken);
-    localStorage.setItem('kaamsetu_user', JSON.stringify(userData));
-    setToken(jwtToken);
-    setUser(userData);
-  };
-
-  const logout = () => {
+export const clearToken = () => {
+  if (typeof window !== 'undefined') {
     localStorage.removeItem('kaamsetu_token');
     localStorage.removeItem('kaamsetu_user');
-    setToken(null);
-    setUser(null);
-    router.push('/auth/login');
-  };
+  }
+};
 
-  const isAuthenticated = !!token;
-  const isWorker = user?.role === 'worker';
-  const isHirer = user?.role === 'hirer';
-  const isAdmin = user?.role === 'admin';
+export const getUser = () => {
+  if (typeof window !== 'undefined') {
+    const user = localStorage.getItem('kaamsetu_user');
+    if (user) return JSON.parse(user);
+    // Fallback: Decode from token if user string not found
+    const token = getToken();
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload;
+      } catch(e) { return null; }
+    }
+  }
+  return null;
+};
 
-  return (
-    <AuthContext.Provider
-      value={{ user, token, loading, isAuthenticated, isWorker, isHirer, isAdmin, loginUser, logout }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
-  return context;
-}
-
-export default AuthContext;
+export const isLoggedIn = () => {
+  return !!getToken();
+};
