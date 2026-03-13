@@ -40,8 +40,8 @@ export default function MatchesDashboard({ params }) {
   const confirmPayment = async (workerId) => {
     try {
       setHiringFlow({ active: true, status: 'loading' });
-      await api.post(`/api/gigs/${gigId}/hire/${workerId}`);
-      toast.success('Worker notified successfully via Telegram!');
+      await api.post(`/api/gigs/${gigId}/hire/${workerId}`, { paymentConfirmed: true });
+      toast.success('Worker is notified and you will get further details of worker when worker accepts the job within 2 hours.', { duration: 6000 });
       router.push('/hirer/manage');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to hire worker');

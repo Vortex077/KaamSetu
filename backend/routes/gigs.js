@@ -3,6 +3,7 @@ const router = express.Router();
 const { auth } = require('../middleware/auth');
 const GigJob = require('../models/GigJob');
 const Worker = require('../models/Worker');
+const Hirer = require('../models/Hirer');
 const Application = require('../models/Application');
 const { sendJobAlerts } = require('../ai/jobAlerts');
 const { generateGigDescription } = require('../ai/gigGenerator');
@@ -140,12 +141,21 @@ router.get('/:id/matches', auth, async (req, res) => {
     }
 
     // Call match engine AI (Should take <50ms natively or generate Applications)
+    const start = Date.now();
     const matches = await getMatchesForGig(gig._id);
+    const matchTimeMs = Date.now() - start;
     
-    // Sort matches by highest score
+    // Sort matches by highest score (already done in getMatchesForGig, but making sure)
     matches.sort((a,b) => b.matchScore - a.matchScore);
 
-    res.json({ success: true, data: matches });
+    res.json({ 
+      success: true, 
+      data: {
+        gig,
+        matches,
+        matchTimeMs
+      }
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: 'Server Error' });
@@ -173,15 +183,64 @@ router.post('/:id/hire/:workerId', auth, async (req, res) => {
     gig.workerTimeoutAt = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hrs
     await gig.save();
 
-    // Trigger Telegram notification for Segment A worker
-    const { notifyWorker } = require('../bot/telegramBot');
+    // Branch notifications based on hireType
     const hirer = await Hirer.findById(req.user.userId);
-    notifyWorker(worker, gig, hirer).catch(console.error);
+    
+    if (gig.hireType === 'daily_gig') {
+      const { notifyWorker } = require('../bot/telegramBot');
+      notifyWorker(worker, gig, hirer).catch(console.error);
+    } else {
+      const { sendHiringEmail } = require('../services/emailService');
+      sendHiringEmail(worker, gig, hirer).catch(console.error);
+    }
 
     res.json({ success: true, data: gig });
   } catch (err) {
+    console.error('[Hire Route Error]:', err);
+    res.status(500).json({ success: false, error: err.message || 'Server Error' });
+  }
+});
+
+// GET /api/gigs/:id/accept-via-email - Worker clicks link in email
+router.get('/:id/accept-via-email', async (req, res) => {
+  try {
+    const { workerId } = req.query;
+    const gig = await GigJob.findById(req.params.id);
+    
+    if (!gig) return res.send('<h1>Gig not found</h1>');
+    if (String(gig.hiredWorkerId) !== workerId) return res.send('<h1>Unauthorized</h1>');
+    if (gig.status === 'worker_accepted') return res.send('<h1>Already accepted!</h1>');
+    if (gig.status !== 'payment_held') return res.send('<h1>This opportunity has expired or been cancelled.</h1>');
+
+    gig.status = 'worker_accepted';
+    gig.contactRevealedAt = new Date();
+    await gig.save();
+
+    // Notify hirer via Push Notification
+    const hirer = await Hirer.findById(gig.hirerId);
+    const worker = await Worker.findById(workerId);
+    const { sendPush } = require('../services/pushService');
+    if (hirer && hirer.pushSubscription) {
+        sendPush(hirer.pushSubscription, {
+            title: 'KaamSetu — Job Accepted! ✅',
+            body: `${worker.name} accepted your job via email! View contacts now.`,
+            url: `/hirer/manage`
+        }).catch(console.error);
+    }
+
+    res.send(`
+      <div style="font-family:sans-serif; text-align:center; padding:50px;">
+        <h1 style="color:#2D6A4F">Job Accepted Successfully! ✅</h1>
+        <p>You have accepted <b>${gig.title}</b>.</p>
+        <p>The hirer has been notified. You can now contact them or wait for their call.</p>
+        <p>Hirer Phone: <b>${hirer.phone}</b></p>
+        <br/>
+        <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/worker/profile" style="color:#FF6B35; font-weight:bold; text-decoration:none;">Go to KaamSetu Dashboard</a>
+      </div>
+    `);
+  } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, error: 'Server Error' });
+    res.status(500).send('Server Error');
   }
 });
 
@@ -266,15 +325,21 @@ router.post('/:id/complete', auth, async (req, res) => {
 router.get('/:id/status', auth, async (req, res) => {
     try {
         const gig = await GigJob.findById(req.params.id)
-            .populate('hiredWorkerId', 'name phone photo aadhaarNumber isAadhaarVerified -_id')
-            .populate('hirerId', 'businessName phone -_id');
+            .populate('hiredWorkerId', 'name phone email photo aadhaarNumber isAadhaarVerified -_id')
+            .populate('hirerId', 'businessName phone email -_id');
         
         if (!gig) { return res.status(404).json({ success: false, error: 'Not found' }) }
 
-        // Strip phone numbers if not accepted
+        // Strip contact info if not accepted
         if (gig.status !== 'worker_accepted' && gig.status !== 'in_progress' && gig.status !== 'completed') {
-             if (gig.hiredWorkerId) gig.hiredWorkerId.phone = null;
-             if (gig.hirerId) gig.hirerId.phone = null;
+             if (gig.hiredWorkerId) {
+                gig.hiredWorkerId.phone = null;
+                gig.hiredWorkerId.email = null;
+             }
+             if (gig.hirerId) {
+                gig.hirerId.phone = null;
+                gig.hirerId.email = null;
+             }
         }
 
         res.json({ success: true, data: gig });
@@ -291,7 +356,7 @@ router.get('/my-gigs', auth, async (req, res) => {
       return res.status(403).json({ success: false, error: 'Only hirers can view their gigs' });
     }
     const gigs = await GigJob.find({ hirerId: req.user.userId })
-        .populate('hiredWorkerId', 'name phone')
+        .populate('hiredWorkerId', 'name phone email')
         .sort({ postedAt: -1 });
     res.json({ success: true, data: gigs });
   } catch (err) {

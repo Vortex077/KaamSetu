@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Clock, CheckCircle2, Phone } from 'lucide-react';
 
-export default function GigStatusTracker({ status, paymentStatus, workerTimeoutAt, workerPhone, workerName }) {
+export default function GigStatusTracker({ status, paymentStatus, workerTimeoutAt, workerPhone, workerName, workerEmail }) {
   const [timeLeft, setTimeLeft] = useState('');
   const [isUrgent, setIsUrgent] = useState(false);
 
@@ -85,13 +85,26 @@ export default function GigStatusTracker({ status, paymentStatus, workerTimeoutA
           </div>
         )}
         
-        {(status === 'worker_accepted' || status === 'in_progress') && workerPhone && (
-          <div className="flex items-center gap-4 text-slate-700 bg-white p-3 rounded-xl border border-slate-100 shadow-sm inline-flex">
-            <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0"><Phone size={20}/></div>
-            <div>
-               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Worker Contact ({workerName})</p>
-               <a href={`tel:+91${workerPhone}`} className="text-lg font-black font-outfit text-slate-900 hover:text-emerald-600 transition-colors">+91 {workerPhone}</a>
-            </div>
+        {(status === 'worker_accepted' || status === 'in_progress') && (workerPhone || workerEmail) && (
+          <div className="flex flex-col sm:flex-row gap-4">
+            {workerPhone && (
+              <div className="flex items-center gap-4 text-slate-700 bg-white p-3 rounded-xl border border-slate-100 shadow-sm inline-flex">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0"><Phone size={20}/></div>
+                <div>
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Worker Phone</p>
+                   <a href={`tel:+91${workerPhone}`} className="text-lg font-black font-outfit text-slate-900 hover:text-emerald-600 transition-colors">+91 {workerPhone}</a>
+                </div>
+              </div>
+            )}
+            {workerEmail && (
+              <div className="flex items-center gap-4 text-slate-700 bg-white p-3 rounded-xl border border-slate-100 shadow-sm inline-flex">
+                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">@</div>
+                <div>
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Worker Email</p>
+                   <a href={`mailto:${workerEmail}`} className="text-lg font-black font-outfit text-slate-900 hover:text-blue-600 transition-colors break-all">{workerEmail}</a>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

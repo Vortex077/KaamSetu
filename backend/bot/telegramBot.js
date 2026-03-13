@@ -9,6 +9,17 @@ let bot;
 if (process.env.TELEGRAM_BOT_TOKEN) {
   bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
 
+  // Handle 409 Conflict when multiple teammates use the same token
+  bot.on('polling_error', (error) => {
+    if (error.code === 'ETELEGRAM' && error.message.includes('409 Conflict')) {
+      console.warn('⚠️ [Telegram Bot] Another instance is already polling (409 Conflict). Stopping polling on this machine to prevent crash loops. Bot features will only work on the active machine.');
+      bot.stopPolling();
+    } else {
+      console.error('[Telegram Bot Polling Error]:', error.message);
+    }
+  });
+
+
   // /start command
   bot.onText(/\/start/, async (msg) => {
     const chatId = msg.chat.id;
@@ -26,18 +37,33 @@ if (process.env.TELEGRAM_BOT_TOKEN) {
   bot.on('voice', async (msg) => {
     const chatId = msg.chat.id;
 
-    // Check if worker already exists and is confirmed
+    // Find existing profile if any
     const existingWorker = await Worker.findOne({ telegramChatId: String(chatId) });
-    if (existingWorker && existingWorker.isAvailable) {
-      return bot.sendMessage(chatId, '⚠️ Aapki profile pehle se bani hui hai. Kaam aane par hum aapko yahan message karenge.');
-    }
+    // Removed the 'profile already exists' block so testers/workers can update their profiles freely by sending a new voice note.
 
-    bot.sendMessage(chatId, '⏳ Sunaa ja raha hai...');
+    bot.sendMessage(chatId, '⏳ Sunaa ja raha hai... (Purani profile hai toh update ho jayegi)');
     try {
       const fileId   = msg.voice.file_id;
       const fileInfo = await bot.getFile(fileId);
       const fileUrl  = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${fileInfo.file_path}`;
       const profile  = await processVoiceRegistration(fileUrl, chatId);
+      
+      let coordinates = [0, 0];
+      if (profile.city) {
+          try {
+             const axios = require('axios');
+             const geoRes = await axios.get(`https://nominatim.openstreetmap.org/search`, {
+                params: { q: profile.city, format: 'json', limit: 1, countrycodes: 'in' },
+                headers: { 'User-Agent': 'KaamSetuBot/1.0' }
+             });
+             if (geoRes.data && geoRes.data.length > 0) {
+                coordinates = [parseFloat(geoRes.data[0].lon), parseFloat(geoRes.data[0].lat)];
+             }
+          } catch(e) {
+             console.error('Bot Geocoding error:', e.message);
+          }
+      }
+
       bot.sendMessage(chatId,
         `✅ *Profile ban gaya!*\n\n` +
         `👤 ${profile.name}\n🔧 Skills: ${profile.skills.join(', ')}\n` +
@@ -47,24 +73,30 @@ if (process.env.TELEGRAM_BOT_TOKEN) {
         { parse_mode: 'Markdown' }
       );
       
-      // Save temporary unconfirmed worker to database
+      const locationData = {
+          type: "Point",
+          coordinates: coordinates,
+          city: profile.city
+      };
+
       if (!existingWorker) {
           await Worker.create({
             name: profile.name,
             phone: 'Pending',
             skills: profile.skills,
-            city: profile.city,
+            location: locationData,
             dailyRate: profile.dailyRate,
             telegramChatId: String(chatId),
             isAvailable: false // Not active until 1 is pressed
           });
       } else {
-          // Update the unconfirmed one
+          // Update the existing profile and force re-confirmation
           await Worker.findByIdAndUpdate(existingWorker._id, {
             name: profile.name,
             skills: profile.skills,
-            city: profile.city,
-            dailyRate: profile.dailyRate
+            location: locationData,
+            dailyRate: profile.dailyRate,
+            isAvailable: false // Force them to press 1 again for the new details
           });
       }
     } catch (err) {
@@ -109,9 +141,10 @@ if (process.env.TELEGRAM_BOT_TOKEN) {
     });
 
     bot.sendMessage(chatId,
-      `🆔 Aadhaar save ho gaya!\n` +
-      `Aapki profile puri tarah se ban chuki hai 🎉\n` +
-      `Ab aap apne pichle kaam ki *photos bhejein* (Jaise banaya hua furniture, theek kiya pipe) taki hirers aapko jaldi kaam dein!`,
+      `🆔 Aadhaar save ho gaya! 🎉\n\n` +
+      `*Aapki registration ab puri tarah se COMPLETE ho chuki hai!* Aapka account active hai. ✅\n\n` +
+      `📸 **(Optional/Marzi Hai)**: Agar aap chahein toh apne pichle kaam ki *photos bhejein* (Jaise banaya hua furniture, theek kiya pipe). Photos bhejne se Kaam jaldi milta hai.\n\n` +
+      `Agar photos nahi bhejni hain, toh aap phone band kar sakte hain. Naya Kaam aane par hum aapko yahin message karenge!`,
       { parse_mode: 'Markdown' }
     );
   });
@@ -140,7 +173,7 @@ if (process.env.TELEGRAM_BOT_TOKEN) {
         $push: { portfolioPhotos: base64Photo }
       });
 
-      bot.sendMessage(chatId, '✅ Aapke pichle kaam ki photo profile me add ho gayi! Aur photos bhejna chahein toh aur bhej sakte hain.');
+      bot.sendMessage(chatId, `✅ Aapke pichle kaam ki photo profile me add ho gayi!\n\nAur photos bhejna chahein toh bhej sakte hain.\n\n*Aapki profile active hai, jab koi naya Kaam aayega toh hum aapko yahin message karenge.*`, { parse_mode: 'Markdown' });
     } catch (err) {
       console.error('Error saving telegram photo:', err);
       bot.sendMessage(chatId, '❌ Photo save nahi ho payi. Kripya dubara bhejein.');
@@ -211,7 +244,6 @@ if (process.env.TELEGRAM_BOT_TOKEN) {
       status:        'payment_held'
     });
     
-    // If there is no pending gig, the user might be trying to cancel profile creation
     if (!pendingGig) {
       if (!worker.isAvailable) {
          await Worker.findByIdAndDelete(worker._id);
@@ -269,5 +301,9 @@ const notifyWorker = async (worker, gig, hirer) => {
     { parse_mode: 'Markdown' }
   );
 };
+
+// Gracefully stop polling on exit
+process.once('SIGINT', () => bot.stopPolling());
+process.once('SIGTERM', () => bot.stopPolling());
 
 module.exports = { bot, notifyWorker };

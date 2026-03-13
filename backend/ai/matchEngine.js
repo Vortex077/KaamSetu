@@ -69,12 +69,14 @@ function calculateMatchScore(gig, worker) {
   const totalScore = breakdown.skills + breakdown.distance + breakdown.rating + breakdown.availability;
 
   return {
-    totalScore: Math.min(totalScore, 100),
+    matchScore: Math.min(totalScore, 100),
     breakdown,
     distanceKm: Math.round(distanceKm * 10) / 10,
     matchedSkills,
   };
 }
+
+const Worker = require('../models/Worker');
 
 /**
  * Calculate match scores for multiple workers and return sorted (highest-first).
@@ -88,7 +90,43 @@ function calculateMatchScores(gig, workers) {
         ...score,
       };
     })
-    .sort((a, b) => b.totalScore - a.totalScore);
+    .sort((a, b) => b.matchScore - a.matchScore);
 }
 
-module.exports = { calculateMatchScore, calculateMatchScores, haversineDistance };
+/**
+ * Fetch workers and get matches for a gig.
+ * Implements the core AI matching logic.
+ */
+async function getMatchesForGig(gigId) {
+  const GigJob = require('../models/GigJob');
+  const gig = await GigJob.findById(gigId);
+  if (!gig) return [];
+
+  // 1. Fetch nearby workers (Radius: 20km) and match the segment type
+  const coords = gig.location?.coordinates;
+  let query = { 
+    isAvailable: true,
+    workerSegment: gig.hireType 
+  };
+  
+  if (coords && coords[0] !== 0) {
+    query.location = {
+      $near: {
+        $geometry: { type: "Point", coordinates: coords },
+        $maxDistance: 20000 // 20km
+      }
+    };
+  }
+
+  const workers = await Worker.find(query).limit(50);
+  
+  // 2. Score them
+  return calculateMatchScores(gig, workers);
+}
+
+module.exports = { 
+  calculateMatchScore, 
+  calculateMatchScores, 
+  getMatchesForGig,
+  haversineDistance 
+};

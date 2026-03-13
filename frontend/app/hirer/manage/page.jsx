@@ -110,6 +110,7 @@ export default function ManageGigsPage() {
                       workerTimeoutAt={gig.workerTimeoutAt}
                       workerName={gig.hiredWorkerId?.name}
                       workerPhone={gig.hiredWorkerId?.phone}
+                      workerEmail={gig.hiredWorkerId?.email}
                    />
                  </div>
 

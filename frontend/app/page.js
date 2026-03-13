@@ -169,9 +169,9 @@ export default function LandingPage() {
                <span className="text-orange-500">Kaam</span>Setu
              </span>
           </div>
-          <p className="mb-6 max-w-md mx-auto">Built for HackIndia EIT 2026. Empowering India's informal workforce through agentic AI.</p>
+          <p className="mb-6 max-w-md mx-auto">Built for HackIndia EIT 2026. Empowering India's informal workforce.</p>
           <div className="text-sm">
-            © 2026 KaamSetu. Bridging Skills with Opportunities.
+            © KaamSetu. Bridging Skills with Opportunities.
           </div>
         </div>
       </footer>
