@@ -28,12 +28,13 @@ const auth = async (req, res, next) => {
       return res.status(401).json({ success: false, error: 'Invalid role in token' });
     }
 
-    const user = await Model.findById(decoded.id).select('-password');
+    const user = await Model.findById(decoded.userId).select('-password');
     if (!user) {
       return res.status(401).json({ success: false, error: 'User not found' });
     }
 
     req.user = user;
+    req.user.userId = decoded.userId; // Ensure routes reading req.user.userId continue to work
     req.role = decoded.role;
     next();
   } catch (error) {
