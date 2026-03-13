@@ -9,7 +9,40 @@ const { generateGigDescription } = require('../ai/gigGenerator');
 const { detectFraud } = require('../ai/fraudDetection');
 const { getMatchesForGig } = require('../ai/matchEngine');
 
-// POST /api/gigs - Post a new gig
+// POST /api/gigs/generate - Generate structured gig from raw input
+router.post('/generate', auth, async (req, res) => {
+  try {
+    const { description, hireType, payPerDay, duration, daysPerWeek, monthlyRate } = req.body;
+    
+    // 1. Generate description & structured data
+    const aiResult = await generateGigDescription({
+      description,
+      hireType,
+      payPerDay,
+      duration,
+      daysPerWeek,
+      monthlyRate,
+      companyType: req.user.role // Placeholder or logic for business type
+    });
+
+    // 2. Fraud check on the resulting content
+    const fraudData = await detectFraud({
+      title: aiResult.title,
+      description: aiResult.description
+    }, 'hirer');
+
+    res.json({
+      success: true,
+      data: {
+        ...aiResult,
+        fraudCheck: fraudData
+      }
+    });
+  } catch (err) {
+    console.error('AI Generation Route Error:', err);
+    res.status(500).json({ success: false, error: 'AI Generation Failed' });
+  }
+});
 router.post('/', auth, async (req, res) => {
   try {
     if (req.user.role !== 'hirer') {

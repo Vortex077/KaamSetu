@@ -190,7 +190,7 @@ export default function PostGigPage() {
             <textarea 
               rows="4" 
               placeholder="e.g. Need an electrician to fix shop wiring and install MCB. Bring own tools..."
-              className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none resize-none mb-4"
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none resize-none mb-4 text-slate-900"
               value={rawDescription}
               onChange={e => setRawDescription(e.target.value)}
             />
