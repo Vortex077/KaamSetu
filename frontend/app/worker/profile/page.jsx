@@ -16,7 +16,8 @@ export default function WorkerProfilePage() {
     dailyRate: '',
     monthlyRate: '',
     availableDays: [],
-    location: null
+    location: null,
+    portfolioPhotos: []
   });
 
   const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -35,7 +36,8 @@ export default function WorkerProfilePage() {
             dailyRate: localUser.jobPreferences?.dailyRate || '',
             monthlyRate: localUser.jobPreferences?.monthlyRate || '',
             availableDays: localUser.jobPreferences?.availableDays || [],
-            location: localUser.location || null
+            location: localUser.location || null,
+            portfolioPhotos: localUser.portfolioPhotos || []
          });
       }
     } catch(err) {
@@ -74,6 +76,31 @@ export default function WorkerProfilePage() {
     }
   };
 
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      return toast.error("Image must be smaller than 2MB");
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+       setForm(prev => ({
+         ...prev,
+         portfolioPhotos: [...prev.portfolioPhotos, reader.result]
+       }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removePhoto = (index) => {
+    setForm(prev => ({
+      ...prev,
+      portfolioPhotos: prev.portfolioPhotos.filter((_, i) => i !== index)
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -88,7 +115,8 @@ export default function WorkerProfilePage() {
             monthlyRate: form.monthlyRate ? Number(form.monthlyRate) : undefined,
             availableDays: form.availableDays
          },
-         location: form.location
+         location: form.location,
+         portfolioPhotos: form.portfolioPhotos
       };
       localStorage.setItem('kaamsetu_user', JSON.stringify(updatedUser));
       setUser(updatedUser);
@@ -167,7 +195,7 @@ export default function WorkerProfilePage() {
                )}
             </div>
 
-            {user.workerSegment === 'part_time' && (
+             {user.workerSegment === 'part_time' && (
               <div className="mt-8">
                  <label className="text-sm font-bold text-slate-700 block mb-3">Available Working Days</label>
                  <div className="flex flex-wrap gap-2">
@@ -179,6 +207,35 @@ export default function WorkerProfilePage() {
                  </div>
               </div>
             )}
+          </section>
+
+          {/* Portfolio Photos Upload */}
+          <section className="border-t border-slate-100 pt-8 relative z-10">
+            <h3 className="text-lg font-black font-outfit text-slate-900 mb-4 flex items-center gap-2">
+              <span className="text-orange-500">📸</span> Previous Work Photos
+            </h3>
+            <p className="text-sm text-slate-500 mb-4 font-medium">Upload photos of your past jobs to build trust with Hirers. (Max 2MB each)</p>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+              {form.portfolioPhotos.map((photo, i) => (
+                <div key={i} className="relative aspect-square rounded-2xl border border-slate-200 shadow-sm overflow-hidden group">
+                   <img src={photo} alt="Work" className="w-full h-full object-cover" />
+                   <button 
+                     type="button" 
+                     onClick={() => removePhoto(i)}
+                     className="absolute top-2 right-2 w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-md"
+                   >
+                     ✕
+                   </button>
+                </div>
+              ))}
+              
+              <label className="aspect-square rounded-2xl border-2 border-dashed border-slate-300 hover:border-orange-500 hover:bg-orange-50 transition flex flex-col items-center justify-center cursor-pointer text-slate-500 hover:text-orange-600">
+                <span className="text-3xl mb-1">+</span>
+                <span className="text-xs font-bold uppercase tracking-wider">Add Photo</span>
+                <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+              </label>
+            </div>
           </section>
 
           {/* Submit */}

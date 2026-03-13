@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { register } from '../../../lib/api';
 import { saveToken } from '../../../lib/auth';
 import Link from 'next/link';
-import { Bot, MapPin } from 'lucide-react';
+import { Bot, MapPin, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../../../lib/api';
 
 export default function RegisterPage() {
   return (
@@ -30,6 +31,12 @@ function RegisterContent() {
     businessName: '', businessType: 'shop'
   });
   const [loading, setLoading] = useState(false);
+  
+  // OTP Flow State
+  const [showOtp, setShowOtp] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [tempUser, setTempUser] = useState(null);
+  const [verifying, setVerifying] = useState(false);
 
   // Sync role from URL
   useEffect(() => {
@@ -55,16 +62,53 @@ function RegisterContent() {
       
       const { data } = await register(payload);
       
-      // Save token and navigate
-      saveToken(data.token);
-      localStorage.setItem('kaamsetu_user', JSON.stringify(data.user));
+      // Save temp user context
+      setTempUser(data);
       
-      toast.success('Registration successful!');
-      router.push(role === 'hirer' ? '/hirer/post' : '/worker/profile');
+      // If daily worker, no OTP needed as they use Telegram
+      if (role === 'worker' && segment === 'daily_gig') {
+         saveToken(data.token);
+         localStorage.setItem('kaamsetu_user', JSON.stringify(data.user));
+         toast.success('Registration successful! Please use Telegram now.');
+         return router.push('/worker/profile');
+      }
+
+      // Automatically trigger OTP send
+      await api.post('/api/auth/send-otp', { email: form.email, role, phone: form.phone || 'Pending' });
+      setShowOtp(true);
+      toast.success('Check your email for the verification code!');
+
     } catch (err) {
       toast.error(err.response?.data?.error || 'Registration failed');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    if (otpCode.length !== 6) return toast.error('OTP must be 6 digits');
+
+    setVerifying(true);
+    try {
+       await api.post('/api/auth/verify-otp', {
+         email: form.email,
+         role,
+         otp: otpCode
+       });
+       
+       // Verification passed!
+       saveToken(tempUser.token);
+       const verifiedUser = { ...tempUser.user, isEmailVerified: true };
+       localStorage.setItem('kaamsetu_user', JSON.stringify(verifiedUser));
+
+       toast.success('Email verified successfully!');
+       router.push(role === 'hirer' ? '/hirer/post' : '/worker/profile');
+       
+    } catch (err) {
+       toast.error(err.response?.data?.error || 'Invalid OTP');
+    } finally {
+       setVerifying(false);
     }
   };
 
@@ -223,6 +267,35 @@ function RegisterContent() {
           <Link href="/auth/login" className="text-orange-600 font-semibold hover:text-orange-500 transition-colors">Sign in →</Link>
         </p>
       </div>
+
+      {/* OTP Modal Overlay */}
+      {showOtp && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in flex-col">
+           <form onSubmit={handleVerifyOtp} className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl relative border border-slate-100 animate-in zoom-in-95">
+             <div className="w-16 h-16 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+             </div>
+             <h3 className="text-2xl font-black font-outfit text-center text-slate-900 mb-2">Verify Email</h3>
+             <p className="text-slate-500 text-sm text-center mb-6 leading-relaxed">
+               We sent a 6-digit code to <strong className="text-slate-700">{form.email}</strong>
+             </p>
+             <input 
+               type="text" 
+               maxLength={6}
+               autoFocus
+               value={otpCode}
+               onChange={e => setOtpCode(e.target.value.replace(/[^0-9]/g, ''))}
+               placeholder="000000"
+               className="w-full text-center text-3xl tracking-[0.5em] font-black font-outfit px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none text-slate-900 mb-6"
+             />
+             <button disabled={verifying || otpCode.length < 6} type="submit" className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold shadow-md transition disabled:opacity-50 flex items-center justify-center">
+                {verifying ? <Loader2 size={20} className="animate-spin" /> : 'VERIFY SECURELY'}
+             </button>
+           </form>
+           
+           <p className="mt-6 text-white text-sm font-semibold opacity-80 z-50">Please check your spam folder as well</p>
+        </div>
+      )}
     </div>
   );
 }

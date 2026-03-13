@@ -83,7 +83,7 @@ export default function ReceivedApplicationsPage() {
                          {app.coverNote && (
                            <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-100/50 relative">
                              <span className="absolute -top-2 left-4 bg-white px-2 py-0.5 text-[10px] uppercase tracking-widest font-black text-amber-600 rounded-md border border-amber-100 shadow-sm">Intro Note</span>
-                             <p className="text-sm text-slate-700 italic font-medium leading-relaxed mt-1">"{app.coverNote}"</p>
+                             <p className="text-sm text-slate-700 italic font-medium leading-relaxed mt-1">&quot;{app.coverNote}&quot;</p>
                            </div>
                          )}
 
@@ -93,6 +93,24 @@ export default function ReceivedApplicationsPage() {
                            ))}
                          </div>
                        </div>
+                       
+                       {app.workerId?.portfolioPhotos && app.workerId.portfolioPhotos.length > 0 && (
+                         <div className="w-full mt-5 bg-slate-50 border border-slate-200 rounded-xl p-4">
+                           <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 mb-2.5 flex items-center gap-1.5">
+                             <span className="text-orange-500 text-sm">📸</span> Previous Work ({app.workerId.portfolioPhotos.length})
+                           </h4>
+                           <div className="flex gap-3 overflow-x-auto pb-2 snap-x hide-scrollbar">
+                             {app.workerId.portfolioPhotos.map((photo, i) => (
+                               <div key={i} className="min-w-[80px] h-[80px] rounded-lg overflow-hidden shrink-0 snap-start border border-slate-300 shadow-sm relative group cursor-pointer">
+                                 <img src={photo} alt="Past Work" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <User size={16} className="text-white"/>
+                                 </div>
+                               </div>
+                             ))}
+                           </div>
+                         </div>
+                       )}
                        
                        <div className="w-full mt-6 pt-5 border-t border-slate-100">
                          <button onClick={() => handleAccept(app._id)} className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black tracking-widest uppercase rounded-xl transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2">

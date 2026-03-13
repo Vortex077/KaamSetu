@@ -23,11 +23,12 @@ const WorkerSchema = new mongoose.Schema({
   },
 
   // Profile
-  photo:      { type: String },
-  skills:     { type: [String], default: [] }, // English lowercase always
-  dailyRate:  { type: Number,   default: 0 },  // for daily_gig and part_time
-  monthlyRate: { type: Number,  default: 0 },  // for full_time
-  experience: { type: String },
+  photo:          { type: String },
+  portfolioPhotos:{ type: [String], default: [] }, // Array of Base64 strings for previous work
+  skills:         { type: [String], default: [] }, // English lowercase always
+  dailyRate:      { type: Number,   default: 0 },  // for daily_gig and part_time
+  monthlyRate:    { type: Number,  default: 0 },  // for full_time
+  experience:     { type: String },
 
   // Location — GeoJSON Point
   // CRITICAL: coordinates are [longitude, latitude] — lng FIRST always

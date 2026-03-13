@@ -111,9 +111,40 @@ if (process.env.TELEGRAM_BOT_TOKEN) {
     bot.sendMessage(chatId,
       `🆔 Aadhaar save ho gaya!\n` +
       `Aapki profile puri tarah se ban chuki hai 🎉\n` +
-      `Jab koi hirer aapko select karega toh hum yahan message karenge.`,
+      `Ab aap apne pichle kaam ki *photos bhejein* (Jaise banaya hua furniture, theek kiya pipe) taki hirers aapko jaldi kaam dein!`,
       { parse_mode: 'Markdown' }
     );
+  });
+
+  // Photo upload collection (Portfolio Pictures)
+  bot.on('photo', async (msg) => {
+    const chatId = msg.chat.id;
+    const worker = await Worker.findOne({ telegramChatId: String(chatId) });
+    if (!worker) return;
+
+    bot.sendMessage(chatId, '⚙️ Photo save ho rahi hai...');
+
+    try {
+      // Telegram sends multiple sizes, get the largest one
+      const photoId = msg.photo[msg.photo.length - 1].file_id;
+      const fileInfo = await bot.getFile(photoId);
+      const fileUrl = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${fileInfo.file_path}`;
+
+      // Download image and convert to Base64
+      const response = await fetch(fileUrl);
+      const buffer = await response.arrayBuffer();
+      const base64Photo = `data:${response.headers.get('content-type')};base64,${Buffer.from(buffer).toString('base64')}`;
+
+      // Push to portfolio
+      await Worker.findByIdAndUpdate(worker._id, {
+        $push: { portfolioPhotos: base64Photo }
+      });
+
+      bot.sendMessage(chatId, '✅ Aapke pichle kaam ki photo profile me add ho gayi! Aur photos bhejna chahein toh aur bhej sakte hain.');
+    } catch (err) {
+      console.error('Error saving telegram photo:', err);
+      bot.sendMessage(chatId, '❌ Photo save nahi ho payi. Kripya dubara bhejein.');
+    }
   });
 
   // Reply "1" — profile confirm OR job accept

@@ -80,6 +80,24 @@ export default function WorkerCard({ worker, matchScore, matchedSkills, distance
         )}
       </div>
 
+      {worker.portfolioPhotos && worker.portfolioPhotos.length > 0 && (
+        <div className="mt-5 border-t border-slate-100 pt-5">
+          <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5 focus:outline-none">
+            <span className="text-orange-500 text-sm">📸</span> Previous Work ({worker.portfolioPhotos.length})
+          </h4>
+          <div className="flex gap-3 overflow-x-auto pb-2 snap-x hide-scrollbar">
+            {worker.portfolioPhotos.map((photo, i) => (
+              <div key={i} className="min-w-[100px] h-[100px] rounded-2xl overflow-hidden shrink-0 snap-start border border-slate-200 shadow-sm relative group cursor-pointer">
+                <img src={photo} alt="Past Work" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                   <SearchCheck size={20} className="text-white"/>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <button onClick={() => onHire(worker)} className="w-full mt-6 py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-extrabold rounded-xl shadow-md hover:shadow-lg hover:shadow-orange-500/25 transition-all text-sm tracking-wide">
         HIRE & LOCK ESCROW
       </button>
