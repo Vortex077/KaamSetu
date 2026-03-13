@@ -20,18 +20,36 @@ export const getMyLocation = () => {
   });
 };
 
-export const geocodeAddress = async (address) => {
+export const geocodeAddress = async (q) => {
   try {
-    const { data } = await api.get('/api/geocode', { params: { address } });
-    if (data.data && data.data.lat && data.data.lng) {
+    const { data } = await api.get('/api/geocode', { params: { q } });
+    if (data.data && data.data.length > 0) {
+      const first = data.data[0];
       return {
-        lat: parseFloat(data.data.lat),
-        lng: parseFloat(data.data.lng),
-        displayName: data.data.displayName
+        lat: parseFloat(first.lat),
+        lng: parseFloat(first.lon),
+        displayName: first.displayName
       };
     }
     throw new Error('Could not geocode address');
   } catch (error) {
     throw error.response?.data?.error || error.message || 'Geocoding failed';
+  }
+};
+
+export const reverseGeocode = async (lat, lon) => {
+  try {
+    const { data } = await api.get('/api/geocode', { params: { lat, lon } });
+    if (data.data && data.data.length > 0) {
+      const first = data.data[0];
+      return {
+        lat: parseFloat(first.lat),
+        lng: parseFloat(first.lon),
+        displayName: first.displayName
+      };
+    }
+    throw new Error('Could not find address for these coordinates');
+  } catch (error) {
+    throw error.response?.data?.error || error.message || 'Reverse geocoding failed';
   }
 };

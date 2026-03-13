@@ -4,7 +4,7 @@ import { User, MapPin, BellRing, Save, Loader2, IndianRupee } from 'lucide-react
 import toast from 'react-hot-toast';
 import api from '../../../lib/api';
 import { subscribeToPush } from '../../../lib/pushNotifications';
-import { getMyLocation, geocodeAddress } from '../../../lib/location';
+import { getMyLocation, reverseGeocode } from '../../../lib/location';
 
 export default function WorkerProfilePage() {
   const [loading, setLoading] = useState(true);
@@ -59,7 +59,7 @@ export default function WorkerProfilePage() {
   const handleLocation = async () => {
     try {
       const pos = await getMyLocation();
-      const geo = await geocodeAddress(`${pos.lat}, ${pos.lng}`);
+      const geo = await reverseGeocode(pos.lat, pos.lng);
       setForm({ ...form, location: { type: 'Point', coordinates: [pos.lng, pos.lat], address: geo.displayName || 'GPS Location' } });
       toast.success('Location Updated Locally');
     } catch(err) {
