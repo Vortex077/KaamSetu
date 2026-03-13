@@ -6,15 +6,15 @@ const Worker = require('../models/Worker');
 const Application = require('../models/Application');
 const { sendJobAlerts } = require('../ai/jobAlerts');
 const { generateGigDescription } = require('../ai/gigGenerator');
-const { detectFraud } = require('../ai/fraudDetection');
 const { getMatchesForGig } = require('../ai/matchEngine');
 
 // POST /api/gigs/generate - Generate structured gig from raw input
 router.post('/generate', auth, async (req, res) => {
   try {
     const { description, hireType, payPerDay, duration, daysPerWeek, monthlyRate } = req.body;
+    console.log('[AI Generate] Request Body:', req.body);
     
-    // 1. Generate description & structured data
+    // AI Generation (Bypassing Fraud Detection for Hackathon)
     const aiResult = await generateGigDescription({
       description,
       hireType,
@@ -22,21 +22,14 @@ router.post('/generate', auth, async (req, res) => {
       duration,
       daysPerWeek,
       monthlyRate,
-      companyType: req.user.role // Placeholder or logic for business type
+      companyType: req.user.role 
     });
 
-    // 2. Fraud check on the resulting content
-    const fraudData = await detectFraud({
-      title: aiResult.title,
-      description: aiResult.description
-    }, 'hirer');
+    console.log('[AI Generate] Result:', aiResult);
 
     res.json({
       success: true,
-      data: {
-        ...aiResult,
-        fraudCheck: fraudData
-      }
+      data: aiResult
     });
   } catch (err) {
     console.error('AI Generation Route Error:', err);
@@ -51,7 +44,7 @@ router.post('/', auth, async (req, res) => {
 
     const { rawInput, title, description, skillsRequired, payPerDay, monthlyRate, daysPerWeek, hireType, duration, location } = req.body;
 
-    // AI Pipeline for Generation & Fraud Detection
+    // AI Pipeline for Generation (Fraud Detection Bypassed)
     let finalTitle = title;
     let finalDesc = description;
     let finalSkills = skillsRequired;
@@ -61,11 +54,6 @@ router.post('/', auth, async (req, res) => {
       finalTitle = generated.title;
       finalDesc = generated.description;
       finalSkills = generated.skillsRequired;
-    }
-
-    const fraudCheck = await detectFraud({ title: finalTitle, description: finalDesc }, 'hirer');
-    if (fraudCheck.isFraud) {
-       return res.status(400).json({ success: false, error: "Suspicious gig listing detected. Cannot proceed." });
     }
 
     // Platform Fee Calc (8% for daily/part_time, 1x monthly for full_time)

@@ -5,7 +5,7 @@
  */
 const axios = require('axios');
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
 /**
  * Generate a polished gig posting from raw hirer input.
@@ -58,11 +58,22 @@ Keep skills lowercase and practical (e.g. "cooking", "cleaning", "electrician", 
       },
     }, { timeout: 15000 });
 
+    console.log('[GigGenerator] Raw Gemini Response:', JSON.stringify(response.data, null, 2));
+
     const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
     try {
-      const result = JSON.parse(text);
+      // Robust JSON extraction: look for the first { and last }
+      let cleanText = text;
+      const firstBrace = text.indexOf('{');
+      const lastBrace = text.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1) {
+         cleanText = text.substring(firstBrace, lastBrace + 1);
+      }
+      
+      const result = JSON.parse(cleanText);
       return { ...result, status: 'generated' };
-    } catch {
+    } catch (parseErr) {
+      console.error('[GigGenerator] Parse error:', parseErr.message, 'Raw text:', text);
       return {
         title: rawInput.title || 'Untitled Gig',
         description: text || rawInput.description || '',
