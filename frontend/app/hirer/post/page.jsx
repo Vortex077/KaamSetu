@@ -201,7 +201,7 @@ export default function PostGigPage() {
               className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold transition flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isGenerating ? <Zap className="animate-pulse" /> : <Sparkles size={20} />}
-              {isGenerating ? 'AI is drafting...' : 'Generate with Gemini AI'}
+              {isGenerating ? 'AI is drafting...' : 'Generate with AI'}
             </button>
 
             <FraudWarningBanner {...fraudData} />
@@ -235,14 +235,10 @@ export default function PostGigPage() {
             <h2 className="text-xl font-bold font-outfit text-slate-900 mb-4">3. Where is the gig?</h2>
             
             {form.location ? (
-              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3">
-                <MapPin className="text-emerald-500" />
-                <div>
-                  <p className="font-bold text-emerald-900">Location Locked</p>
-                  <p className="text-sm text-emerald-700">{form.location.address}</p>
-                </div>
-                <button type="button" onClick={() => setForm({...form, location: null})} className="ml-auto text-sm font-bold text-emerald-600 hover:text-emerald-800 bg-white px-3 py-1 rounded-lg border border-emerald-200 shadow-sm">Change</button>
-              </div>
+               <div className="flex justify-between items-center p-4 bg-emerald-50 rounded-xl border border-emerald-100 shadow-sm">
+                 <span className="font-bold text-emerald-900 text-sm truncate max-w-sm flex items-center gap-2"><MapPin size={16}/> {form.location.address}</span>
+                 <button type="button" onClick={() => setForm({...form, location: null})} className="text-xs font-black text-emerald-700 hover:text-emerald-900 uppercase tracking-widest bg-white px-3 py-1.5 rounded-lg shadow-sm border border-emerald-200">Change</button>
+               </div>
             ) : (
               <div className="space-y-4">
                 <button type="button" onClick={handleGetLocation} disabled={locating} className="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold rounded-xl flex items-center justify-center gap-2 transition shadow-sm border border-slate-200">

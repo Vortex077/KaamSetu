@@ -1,3 +1,29 @@
 # Agents
 .agents/
 agents/workflows/
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.*
+
+# Build and Temp files
+build/
+dist/
+.next/
+out/
+coverage/
+
+# Environment variables
+.env
+.env.*
+backend/.env
+frontend/.env
+!.env.example
+
+# Misc
+.DS_Store
+*.pem
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

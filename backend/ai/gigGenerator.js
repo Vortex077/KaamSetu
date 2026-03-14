@@ -21,7 +21,7 @@ async function generateGigDescription(rawInput) {
 
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ 
-    model: "gemini-2.0-flash",
+    model: "gemini-2.5-flash",
     generationConfig: {
        responseMimeType: "application/json",
     }
@@ -57,7 +57,9 @@ Keep skills lowercase and practical (e.g. "cooking", "cleaning", "electrician", 
     console.log('[GigGenerator] Raw Gemini Response:', text);
 
     try {
-      const parsedData = JSON.parse(text);
+      // Clean up markdown blocks if Gemini added them despite responseMimeType
+      const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      const parsedData = JSON.parse(cleanText);
       return { ...parsedData, status: 'generated' };
     } catch (parseErr) {
       console.error('[GigGenerator] Parse error:', parseErr.message, 'Raw text:', text);
