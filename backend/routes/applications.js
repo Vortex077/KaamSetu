@@ -6,6 +6,8 @@ const GigJob = require('../models/GigJob');
 const Worker = require('../models/Worker');
 const Hirer = require('../models/Hirer');
 const { sendPush } = require('../services/pushService');
+const { sendApplicationAlertEmail } = require('../services/emailService');
+const { calculateMatchScore } = require('../ai/matchEngine');
 const { bot } = require('../bot/telegramBot');
 
 // POST /api/applications (Worker self-applies to B & C Segment Gigs)
@@ -23,15 +25,39 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Daily gigs are push-matched via AI only' });
     }
 
+    // Calculate a dynamic match score using AI so it appears appropriately in the Hirer's Dashboard
+    const worker = await Worker.findById(req.user.userId);
+    const hirer = await Hirer.findById(gig.hirerId);
+    let matchScore = 50; 
+    try {
+        const scoreData = calculateMatchScore(gig, worker);
+        matchScore = scoreData.matchScore;
+    } catch(e) {
+        console.error("Match engine failed during application, using default 50", e);
+    }
+
     const newApp = new Application({
       gigId,
-      workerId: req.user.userId,
+      workerId: worker._id,
       applicationMethod: 'self_applied',
       status: 'applied',
-      coverNote
+      coverNote,
+      matchScore
     });
 
     await newApp.save();
+
+    // Async Notifications to Hirer
+    if (hirer) {
+        if (hirer.pushSubscription) {
+            sendPush(hirer.pushSubscription, {
+                title: 'KaamSetu — New Applicant! 📝',
+                body: `${worker.name} just applied for: ${gig.title}`,
+                url: `/hirer/matches/${gig._id}`
+            }).catch(console.error);
+        }
+        sendApplicationAlertEmail(hirer, worker, gig).catch(console.error);
+    }
 
     res.status(201).json({ success: true, data: newApp });
   } catch (err) {

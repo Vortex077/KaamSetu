@@ -20,7 +20,7 @@ function useCounter(end, duration = 1000) {
   return count;
 }
 
-export default function WorkerCard({ worker, matchScore, matchedSkills, distanceKm, onHire }) {
+export default function WorkerCard({ worker, matchScore, matchedSkills, distanceKm, onHire, onViewProfile }) {
   const score = useCounter(matchScore);
   
   const isHigh = matchScore > 75;
@@ -30,8 +30,12 @@ export default function WorkerCard({ worker, matchScore, matchedSkills, distance
   const initials = worker.name.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm hover:shadow-lg transition-all relative overflow-hidden group">
-      {/* Top Section */}
+    <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm hover:shadow-lg transition-all relative overflow-hidden group flex flex-col h-full">
+      <div 
+        className="cursor-pointer flex-1"
+        onClick={() => onViewProfile && onViewProfile(worker)}
+      >
+        {/* Top Section */}
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-full bg-slate-800 text-white flex items-center justify-center text-xl font-bold shadow-sm">
@@ -97,8 +101,9 @@ export default function WorkerCard({ worker, matchScore, matchedSkills, distance
           </div>
         </div>
       )}
+      </div>
 
-      <button onClick={() => onHire(worker)} className="w-full mt-6 py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-extrabold rounded-xl shadow-md hover:shadow-lg hover:shadow-orange-500/25 transition-all text-sm tracking-wide">
+      <button onClick={() => onHire(worker)} className="w-full mt-auto py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-extrabold rounded-xl shadow-md hover:shadow-lg hover:shadow-orange-500/25 transition-all text-sm tracking-wide shrink-0">
         HIRE & LOCK ESCROW
       </button>
     </div>

@@ -6,9 +6,9 @@ export default function GigCard({ gig, onApply, applied }) {
   const isPartTime = gig.hireType === 'part_time';
   
   let payText = '';
-  if (isDaily) payText = `₹${gig.payPerDay}/day for ${gig.duration} days`;
-  else if (isPartTime) payText = `₹${gig.payPerDay}/day for ${gig.daysPerWeek} days/wk`;
-  else payText = `₹${gig.monthlyRate}/month`;
+  if (isDaily) payText = `₹${gig.payPerDay || 0}/day for ${gig.duration || 1} days`;
+  else if (isPartTime) payText = `₹${gig.payPerDay || 0}/day for ${gig.daysPerWeek || 1} days/wk`;
+  else payText = `₹${gig.monthlyRate || 0}/month`;
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm hover:shadow-lg transition-all flex flex-col h-full group">

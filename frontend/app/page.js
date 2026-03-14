@@ -9,12 +9,12 @@ export default function LandingPage() {
       {/* HERO SECTION */}
       <section className="relative pt-20 pb-32 overflow-hidden bg-slate-900 text-white">
         <div className="absolute inset-0 z-0">
-          <img 
+          {/* <img 
             src="/hero-image.jpg" 
-            alt="Workers in India" 
+            alt="" 
             className="w-full h-full object-cover opacity-30 mix-blend-overlay"
             onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1596422846543-75c6af282bb2?q=80&w=2000&auto=format&fit=crop"; }}
-          />
+          /> */}
           <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
         </div>
         

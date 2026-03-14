@@ -1,5 +1,6 @@
 const TelegramBot = require('node-telegram-bot-api');
 const { processVoiceRegistration } = require('../ai/voiceRegistration');
+const { processVoiceReview } = require('../ai/voiceReview');
 const GigJob  = require('../models/GigJob');
 const Worker  = require('../models/Worker');
 const Hirer   = require('../models/Hirer');
@@ -33,13 +34,56 @@ if (process.env.TELEGRAM_BOT_TOKEN) {
     );
   });
 
-  // Voice note — runs full AI pipeline
+  // Voice note — runs full AI pipeline (Profile Creation OR Job Review)
   bot.on('voice', async (msg) => {
     const chatId = msg.chat.id;
 
     // Find existing profile if any
     const existingWorker = await Worker.findOne({ telegramChatId: String(chatId) });
-    // Removed the 'profile already exists' block so testers/workers can update their profiles freely by sending a new voice note.
+    
+    // --- INTERCEPT CHECK: Is there a completed gig waiting for a review? ---
+    if (existingWorker) {
+      const gigToReview = await GigJob.findOne({ 
+        hiredWorkerId: existingWorker._id, 
+        status: 'completed', 
+        hirerReviewed: false 
+      });
+
+      if (gigToReview) {
+        bot.sendMessage(chatId, '⏳ Aapki aawaz sun kar review save kiya ja raha hai...');
+        try {
+          const fileId   = msg.voice.file_id;
+          const fileInfo = await bot.getFile(fileId);
+          const fileUrl  = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${fileInfo.file_path}`;
+          const review   = await processVoiceReview(fileUrl);
+          
+          const hirer = await Hirer.findById(gigToReview.hirerId);
+          
+          if (hirer) {
+            hirer.reviews.push({
+              gigId: gigToReview._id,
+              workerId: existingWorker._id,
+              rating: review.rating,
+              feedback: review.feedback
+            });
+            
+            const totalRating = hirer.reviews.reduce((sum, rev) => sum + rev.rating, 0);
+            hirer.rating = totalRating / hirer.reviews.length;
+            hirer.totalHires += 1; // Assuming total jobs/hires tracks experiences
+            await hirer.save();
+          }
+
+          gigToReview.hirerReviewed = true;
+          await gigToReview.save();
+
+          return bot.sendMessage(chatId, `✅ *Review Save Ho Gaya!*\n\nAapne ${review.rating}🌟 ki rating di aur kaha: "${review.feedback}"\n\nNaya Kaam aane par hum aapko fir batayenge!`, { parse_mode: 'Markdown' });
+        } catch (err) {
+          console.error('[VoiceReview Bot Error]', err);
+          return bot.sendMessage(chatId, '❌ Review sunne mein problem hui. Dubara bhejein.');
+        }
+      }
+    }
+    // ----------------------------------------------------------------------
 
     bot.sendMessage(chatId, '⏳ Sunaa ja raha hai... (Purani profile hai toh update ho jayegi)');
     try {

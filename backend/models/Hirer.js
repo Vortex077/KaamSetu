@@ -31,6 +31,13 @@ const HirerSchema = new mongoose.Schema({
   isVerified:  { type: Boolean, default: false },
   totalHires:  { type: Number,  default: 0 },
   rating:      { type: Number,  default: 0 },
+  reviews: [{
+    gigId:     { type: mongoose.Schema.Types.ObjectId, ref: 'GigJob' },
+    workerId:  { type: mongoose.Schema.Types.ObjectId, ref: 'Worker' },
+    rating:    { type: Number, min: 1, max: 5 },
+    feedback:  { type: String },
+    createdAt: { type: Date, default: Date.now }
+  }],
 
   createdAt: { type: Date, default: Date.now }
 });

@@ -83,6 +83,13 @@ const WorkerSchema = new mongoose.Schema({
   // Reputation
   rating:    { type: Number, default: 0 },
   totalJobs: { type: Number, default: 0 },
+  reviews: [{
+    gigId:     { type: mongoose.Schema.Types.ObjectId, ref: 'GigJob' },
+    hirerId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Hirer' },
+    rating:    { type: Number, min: 1, max: 5 },
+    feedback:  { type: String },
+    createdAt: { type: Date, default: Date.now }
+  }],
 
   // Meta
   registrationMethod: {

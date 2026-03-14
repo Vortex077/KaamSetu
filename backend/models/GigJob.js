@@ -58,6 +58,9 @@ const GigJobSchema = new mongoose.Schema({
   workerTimeoutAt:   { type: Date, default: null }, // + 2 hours
   contactRevealedAt: { type: Date, default: null },
 
+  workerReviewed: { type: Boolean, default: false },
+  hirerReviewed:  { type: Boolean, default: false },
+
   postedAt:  { type: Date, default: Date.now },
   startDate: { type: Date },
   endDate:   { type: Date }

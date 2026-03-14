@@ -74,6 +74,39 @@ const sendHiringEmail = async (worker, gig, hirer) => {
   }
 };
 
+const sendApplicationAlertEmail = async (hirer, worker, gig) => {
+  if (!hirer.email || !process.env.EMAIL_USER) return;
+  
+  const manageLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/hirer/matches/${gig._id}`;
+
+  try {
+    await transporter.sendMail({
+      from: `"KaamSetu" <${process.env.EMAIL_USER}>`,
+      to: hirer.email,
+      subject: `New Application for ${gig.title}`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+          <h2 style="color: #FF6B35;">New Applicant!</h2>
+          <p><strong>${worker.name}</strong> just applied for your open position: <strong>${gig.title}</strong>.</p>
+          
+          <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0;">
+             <p><strong>Applicant:</strong> ${worker.name}</p>
+             <p><strong>Rating:</strong> ${worker.rating?.toFixed(1) || 'New'} ⭐</p>
+             <p><strong>Skills:</strong> ${worker.skills.join(', ')}</p>
+          </div>
+
+          <p>You can review their profile, portfolio, and hire them directly from your KaamSetu Match Dashboard.</p>
+          
+          <a href="${manageLink}" style="display: inline-block; background: #1E3A5F; color: white; padding: 12px 25px; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 10px;">Review Applicant</a>
+        </div>
+      `
+    });
+    console.log(`[EmailService] Application alert sent to ${hirer.email}`);
+  } catch (err) {
+    console.error("Failed to send application alert email", err);
+  }
+};
+
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
-module.exports = { sendOTP, generateOTP, sendHiringEmail };
+module.exports = { sendOTP, generateOTP, sendHiringEmail, sendApplicationAlertEmail };

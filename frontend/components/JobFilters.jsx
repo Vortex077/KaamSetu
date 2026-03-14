@@ -4,6 +4,19 @@ export default function JobFilters({ filters, setFilters, applyFilters }) {
       <h3 className="text-xl font-bold font-outfit text-slate-900 border-b border-slate-100 pb-3">Job Filters</h3>
       
       <div>
+        <label className="text-sm font-bold text-slate-700 block mb-2">Job Type</label>
+        <select 
+           value={filters.hireType || ''} 
+           onChange={e => setFilters({...filters, hireType: e.target.value})} 
+           className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-medium text-slate-900" 
+        >
+           <option value="">Any</option>
+           <option value="part_time">Part-Time</option>
+           <option value="full_time">Full-Time</option>
+        </select>
+      </div>
+
+      <div>
         <label className="text-sm font-bold text-slate-700 block mb-3">Maximum Distance</label>
         <input 
            type="range" min="1" max="50" 

@@ -94,7 +94,10 @@ router.get('/applications', auth, async (req, res) => {
 // Public Profile Route
 router.get('/:id', async (req, res) => {
   try {
-    const worker = await Worker.findById(req.params.id).select('-password -telegramChatId -emailOTP -pushSubscription');
+    const worker = await Worker.findById(req.params.id)
+      .select('-password -telegramChatId -emailOTP -pushSubscription')
+      .populate('reviews.hirerId', 'name businessName businessType location.city');
+      
     if (!worker) return res.status(404).json({ success: false, error: 'Worker not found' });
     res.json({ success: true, data: worker });
   } catch (err) {

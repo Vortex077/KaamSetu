@@ -18,7 +18,7 @@ export default function ApplicationsPage() {
 
   const fetchApplications = async () => {
     try {
-      const { data } = await api.get('/api/applications/my-applications');
+      const { data } = await api.get('/api/applications/my');
       setApplications(data.data);
     } catch(err) {
       toast.error('Failed to load applications');

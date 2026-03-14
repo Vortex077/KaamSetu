@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const fs = require('fs');
 const { auth } = require('../middleware/auth');
 const GigJob = require('../models/GigJob');
 const Worker = require('../models/Worker');
@@ -104,7 +105,7 @@ router.get('/browse', async (req, res) => {
     if (hireType) query.hireType = hireType;
     if (skill) query.skillsRequired = { $in: [skill.toLowerCase()] };
     
-    if (lat && lng && maxDist) {
+    if (lat && lng && maxDist && !isNaN(parseFloat(lat)) && !isNaN(parseFloat(lng))) {
         query.location = {
             $near: {
                 $geometry: { type: "Point", coordinates: [parseFloat(lng), parseFloat(lat)] },
@@ -314,11 +315,102 @@ router.post('/:id/complete', auth, async (req, res) => {
      gig.paymentStatus = 'released';
      await gig.save();
 
+     // If Telegram Worker, Ask for Voice Review
+     if (gig.hireType === 'daily_gig') {
+         const worker = await Worker.findById(gig.hiredWorkerId);
+         if (worker && worker.telegramChatId) {
+             const { bot } = require('../bot/telegramBot');
+             bot.sendMessage(worker.telegramChatId, `🎉 *Kaam poora ho gaya!*\n\n` + 
+                `Aapko hirer ka kaam kaisa laga? Apna anubhav ek *Voice Note* bhej kar record karein (Rate 1-5 aur feedback).`, 
+                { parse_mode: 'Markdown' });
+         }
+     }
+
      res.json({ success: true, data: gig });
    } catch(err) {
        console.error(err);
        res.status(500).json({ success: false, error: 'Server Error' });
    }
+});
+
+// POST /api/gigs/:id/review/worker - Hirer reviews the Worker
+router.post('/:id/review/worker', auth, async (req, res) => {
+    try {
+        const { rating, feedback } = req.body;
+        if (!rating || rating < 1 || rating > 5) return res.status(400).json({ success: false, error: "Invalid rating" });
+
+        const gig = await GigJob.findById(req.params.id);
+        if (!gig || String(gig.hirerId) !== req.user.userId || gig.status !== 'completed' || gig.workerReviewed) {
+           return res.status(403).json({ success: false, error: "Cannot review this gig" });
+        }
+
+        const worker = await Worker.findById(gig.hiredWorkerId);
+        if (!worker) return res.status(404).json({ success: false, error: "Worker not found" });
+
+        // Add review
+        worker.reviews = worker.reviews || [];
+        worker.reviews.push({
+            gigId: gig._id,
+            hirerId: req.user.userId,
+            rating,
+            feedback
+        });
+        
+        // Recalculate average rating
+        const totalRating = worker.reviews.reduce((sum, rev) => sum + (rev.rating || 5), 0);
+        worker.rating = totalRating / worker.reviews.length;
+        worker.totalJobs = (worker.totalJobs || 0) + 1;
+        await worker.save();
+
+        gig.workerReviewed = true;
+        await gig.save();
+
+        res.json({ success: true, message: "Review saved" });
+    } catch(err) {
+        fs.writeFileSync('backend-error.log', err.stack || err.toString());
+        console.error(err);
+        res.status(500).json({ success: false, error: err.message || 'Server Error' });
+    }
+});
+
+// POST /api/gigs/:id/review/hirer - Worker (Web) reviews the Hirer
+router.post('/:id/review/hirer', auth, async (req, res) => {
+    try {
+        const { rating, feedback } = req.body;
+        if (!rating || rating < 1 || rating > 5) return res.status(400).json({ success: false, error: "Invalid rating" });
+
+        const gig = await GigJob.findById(req.params.id);
+        if (!gig || String(gig.hiredWorkerId) !== req.user.userId || gig.status !== 'completed' || gig.hirerReviewed) {
+           return res.status(403).json({ success: false, error: "Cannot review this gig" });
+        }
+
+        const hirer = await Hirer.findById(gig.hirerId);
+        if (!hirer) return res.status(404).json({ success: false, error: "Hirer not found" });
+
+        // Add review
+        hirer.reviews = hirer.reviews || [];
+        hirer.reviews.push({
+            gigId: gig._id,
+            workerId: req.user.userId,
+            rating,
+            feedback
+        });
+        
+        // Recalculate average rating
+        const totalRating = hirer.reviews.reduce((sum, rev) => sum + (rev.rating || 5), 0);
+        hirer.rating = totalRating / hirer.reviews.length;
+        hirer.totalHires = (hirer.totalHires || 0) + 1;
+        await hirer.save();
+
+        gig.hirerReviewed = true;
+        await gig.save();
+
+        res.json({ success: true, message: "Review saved" });
+    } catch(err) {
+        fs.writeFileSync('backend-error.log', err.stack || err.toString());
+        console.error(err);
+        res.status(500).json({ success: false, error: err.message || 'Server Error' });
+    }
 });
 
 // GET /api/gigs/:id/status

@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import api from '../../../../lib/api';
 import WorkerCard from '../../../../components/WorkerCard';
 import PaymentModal from '../../../../components/PaymentModal';
+import WorkerProfileModal from '../../../../components/WorkerProfileModal';
 
 export default function MatchesDashboard({ params }) {
   const unwrappedParams = use(params);
@@ -16,6 +17,7 @@ export default function MatchesDashboard({ params }) {
   const [data, setData] = useState(null); 
   const [loading, setLoading] = useState(true);
   const [selectedWorker, setSelectedWorker] = useState(null);
+  const [viewingWorkerId, setViewingWorkerId] = useState(null);
   const [hiringFlow, setHiringFlow] = useState({ active: false, status: 'idle' });
 
   useEffect(() => {
@@ -106,11 +108,18 @@ export default function MatchesDashboard({ params }) {
                 matchedSkills={matchedSkills}
                 distanceKm={distanceKm}
                 onHire={handleHire}
+                onViewProfile={(w) => setViewingWorkerId(w._id)}
               />
             ))}
           </div>
         )}
       </div>
+
+      <WorkerProfileModal
+        workerId={viewingWorkerId}
+        onClose={() => setViewingWorkerId(null)}
+        onHire={handleHire}
+      />
 
       {selectedWorker && (
         <PaymentModal 

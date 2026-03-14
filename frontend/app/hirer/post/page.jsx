@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { MapPin, Sparkles, Send, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../../lib/api';
-import { getMyLocation, geocodeAddress } from '../../../lib/location';
+import { getMyLocation, geocodeAddress, reverseGeocode } from '../../../lib/location';
 import HireTypeSelector from '../../../components/HireTypeSelector';
 import FraudWarningBanner from '../../../components/FraudWarningBanner';
 
@@ -43,7 +43,8 @@ export default function PostGigPage() {
     setLocating(true);
     try {
       const pos = await getMyLocation(); 
-      setForm({ ...form, location: { type: 'Point', coordinates: [pos.lng, pos.lat], address: 'GPS Location', city: 'Detected City' } });
+      const geo = await reverseGeocode(pos.lat, pos.lng);
+      setForm({ ...form, location: { type: 'Point', coordinates: [pos.lng, pos.lat], address: geo.displayName || 'GPS Location', city: geo.displayName?.split(',')[0] || 'Detected City' } });
       toast.success('Location detected!');
     } catch (err) {
       toast.error('Could not get GPS. Please type your address.');

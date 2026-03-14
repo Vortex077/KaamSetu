@@ -30,7 +30,7 @@ You are an AI assistant for a local job platform in India called KaamSetu.
 Listen to this voice note in Hindi/Hinglish from a blue-collar worker.
 Extract the following information from the audio:
 - name (string)
-- skills (array of strings, keep them simple e.g., ["plumber", "electrician"])
+- skills (array of strings). CRITICAL SKILLS RULE: You MUST ONLY select exact strings from this official list: ["electrician", "plumber", "carpenter", "painter", "mason", "cleaning", "helper", "driver", "delivery", "welding", "cook", "guard", "mechanic"]. If their spoken skills don't match perfectly, map it to the closest category. If it doesn't match at all, use ["helper"].
 - city (string)
 - dailyRate (number, extract the daily expected pay in INR, just the number)
 

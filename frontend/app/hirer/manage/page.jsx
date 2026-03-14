@@ -105,12 +105,14 @@ export default function ManageGigsPage() {
                  {/* Tracker */}
                  <div className="pt-6 border-t border-slate-100">
                    <GigStatusTracker 
+                      gigId={gig._id}
                       status={gig.status}
                       paymentStatus={gig.paymentStatus}
                       workerTimeoutAt={gig.workerTimeoutAt}
                       workerName={gig.hiredWorkerId?.name}
                       workerPhone={gig.hiredWorkerId?.phone}
                       workerEmail={gig.hiredWorkerId?.email}
+                      workerReviewed={gig.workerReviewed}
                    />
                  </div>
 

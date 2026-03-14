@@ -47,7 +47,7 @@ Generate a professional, clear, and attractive gig posting in this JSON format:
 }
 
 If the offered pay seems too low for the work described, suggest a fair market rate in suggestedPay. If pay is reasonable, set suggestedPay to null.
-Keep skills lowercase and practical (e.g. "cooking", "cleaning", "electrician", not "hard working").`;
+CRITICAL SKILLS RULE: For "skillsRequired", you MUST ONLY pick exact strings from this official KaamSetu list: ["electrician", "plumber", "carpenter", "painter", "mason", "cleaning", "helper", "driver", "delivery", "welding", "cook", "guard", "mechanic"]. If their description requires specific tasks (e.g., earthing issues), map it broadly to "electrician". If nothing fits perfectly, use "helper".`;
 
   try {
     const result = await model.generateContent(prompt);

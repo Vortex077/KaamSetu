@@ -10,11 +10,12 @@ import { getMyLocation, geocodeAddress } from '../../../lib/location';
 export default function BrowseJobsPage() {
   const [gigs, setGigs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ maxDist: 10, minPay: '', skill: '', lat: '', lng: '' });
+  const [filters, setFilters] = useState({ maxDist: 10, minPay: '', skill: '', lat: '', lng: '', hireType: '' });
   const [appliedJobs, setAppliedJobs] = useState(new Set());
 
   useEffect(() => {
     initLocationAndFetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const initLocationAndFetch = async () => {
@@ -22,6 +23,11 @@ export default function BrowseJobsPage() {
        const user = JSON.parse(localStorage.getItem('kaamsetu_user'));
        let useLat = '';
        let useLng = '';
+       let useHireType = '';
+
+       if (user?.workerSegment && user.workerSegment !== 'daily_gig') {
+           useHireType = user.workerSegment;
+       }
 
        if (user?.location?.coordinates) {
           useLng = user.location.coordinates[0];
@@ -34,7 +40,7 @@ export default function BrowseJobsPage() {
           } catch(e) {}
        }
 
-       const newFilters = { ...filters, lat: useLat, lng: useLng };
+       const newFilters = { ...filters, lat: useLat, lng: useLng, hireType: useHireType };
        setFilters(newFilters);
        fetchGigs(newFilters);
     } catch(err) {
@@ -49,6 +55,7 @@ export default function BrowseJobsPage() {
        if (activeFilters.lat) { params.append('lat', activeFilters.lat); params.append('lng', activeFilters.lng); params.append('maxDist', activeFilters.maxDist); }
        if (activeFilters.minPay) params.append('minPay', activeFilters.minPay);
        if (activeFilters.skill) params.append('skill', activeFilters.skill);
+       if (activeFilters.hireType) params.append('hireType', activeFilters.hireType);
 
        const { data } = await api.get(`/api/gigs/browse?${params.toString()}`);
        
@@ -57,7 +64,7 @@ export default function BrowseJobsPage() {
        
        // Map already applied jobs explicitly
        try {
-         const appsRes = await api.get('/api/applications/my-applications');
+         const appsRes = await api.get('/api/applications/my');
          const appliedIds = appsRes.data.data.map(app => app.gigId._id || app.gigId);
          setAppliedJobs(new Set(appliedIds));
        } catch(e) {}

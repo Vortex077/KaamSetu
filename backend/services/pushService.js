@@ -16,14 +16,15 @@ if (process.env.VAPID_EMAIL && process.env.VAPID_PUBLIC_KEY && process.env.VAPID
 const Worker = require('../models/Worker');
 const Hirer = require('../models/Hirer');
 
-const removeExpiredSubscription = async (subscriptionStr) => {
-  // It could be either a Worker or a Hirer
+const removeExpiredSubscription = async (subscription) => {
+  if (!subscription || !subscription.endpoint) return;
+  // Safely remove only the exact expired subscription
   await Worker.updateMany(
-    { pushSubscription: { $ne: null } },
+    { "pushSubscription.endpoint": subscription.endpoint },
     { $set: { pushSubscription: null } }
   );
   await Hirer.updateMany(
-    { pushSubscription: { $ne: null } },
+    { "pushSubscription.endpoint": subscription.endpoint },
     { $set: { pushSubscription: null } }
   );
 };
@@ -40,6 +41,7 @@ const sendPush = async (subscription, payload) => {
         url:   payload.url || '/'
       })
     );
+    console.log('[Push] Notification sent successfully to', subscription.endpoint.substring(0, 50) + '...');
   } catch (err) {
     console.error('Push failed:', err.statusCode);
     // If 410 Gone — subscription expired, remove from DB
